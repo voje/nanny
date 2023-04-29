@@ -1,10 +1,12 @@
-use nanny::shutdown::shutdown_with_message_wrapper;
 use clap::Parser;
-use serde::{Serialize, Deserialize};
-use serde_yaml;
 use std::path::Path;
 use std::fs::File;
-use std::time::{SystemTime, Duration};
+use serde_yaml;
+use chrono::{DateTime, Duration, Local};
+use std::thread::sleep;
+
+use nanny::shutdown::shutdown_with_message_wrapper;
+use nanny::state::State;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -33,37 +35,50 @@ struct Args {
     state_path: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct State {
-    // TODO represent time
-    last_sync: SystemTime,
-    daily_limit_left: Duration,
-}
-
-fn init_state(args: &Args) -> State {
-    State {
-        last_sync: SystemTime::now(),
-        daily_limit_left: Duration::new(args.limit.into(), 0),
-    }
-}
-
 fn main() {
     let args = Args::parse();
 
     if ! Path::new(args.state_path.as_str()).exists() {
-        let writer = File::create(args.state_path.as_str())
+        let writer = File::create(&args.state_path.as_str())
             .expect("Failed to create state file");
-        let is = init_state(&args);
-        serde_yaml::to_writer(writer, &is)
+
+        let st = State::new(
+			args.limit,
+			args.start.as_str(),
+			args.end.as_str(),
+		);
+        serde_yaml::to_writer(writer, &st)
             .expect("Failed to write init state");
     }
 
-    let reader = std::fs::File::open(args.state_path)
-        .expect("Failed opening state file");
-    let state: State = serde_yaml::from_reader(reader)
-        .expect("Failed parsing state file");
+	let freq = Duration::seconds(3);
+	loop {
+		// Read
+		let fd = std::fs::File::open(&args.state_path)
+			.expect("Failed opening state file");
+		let mut st: State = serde_yaml::from_reader(fd)
+			.expect("Failed parsing state file");
 
-    println!("{:?}", state);
+		// Action
+    	println!("{:?}", st);
+		let tn: DateTime<Local>  = Local::now();
+		if ! st.tick(freq, tn) {
+			println!("Tick failed, shutting down");
+    		shutdown_with_message_wrapper("Enough computer for today.", 60, false).expect("Shutdown failed");
+			println!("Waiting for the system to shut down");
+			loop {
+				sleep(Duration::minutes(1).to_std().unwrap());
+			}
+		}
 
-    shutdown_with_message_wrapper("Test123", 60, false).expect("Shutdown failed");
+		// Write
+		let fd = std::fs::File::create(&args.state_path)
+			.expect("Failed opening state file");
+        serde_yaml::to_writer(fd, &st)
+            .expect("Failed writing state to file");
+
+		// Wait
+		sleep(freq.to_std().unwrap());
+	}
 }
+
