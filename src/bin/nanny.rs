@@ -20,6 +20,12 @@ struct Args {
     #[arg(long)]
     limit: u32,
 
+    /// Tick frequency in seconds
+    ///
+    /// How often the program checks system time against its rules.
+    #[arg(long, default_value_t = 60)]
+    freq: u32,
+
     /// Start time hh:mm
     #[arg(long)]
     start: String,
@@ -51,7 +57,7 @@ fn main() {
             .expect("Failed to write init state");
     }
 
-	let freq = Duration::seconds(3);
+	let freq = Duration::seconds(args.freq.into());
 	loop {
 		// Read
 		let fd = std::fs::File::open(&args.state_path)
@@ -65,10 +71,13 @@ fn main() {
 		if ! st.tick(freq, tn) {
 			println!("Tick failed, shutting down");
     		shutdown_with_message_wrapper("Enough computer for today.", 60, false).expect("Shutdown failed");
+
+            /*
 			println!("Waiting for the system to shut down");
 			loop {
 				sleep(Duration::minutes(1).to_std().unwrap());
 			}
+            */
 		}
 
 		// Write
