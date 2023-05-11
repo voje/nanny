@@ -1,6 +1,7 @@
 use serde::{Serialize, Deserialize};
 use chrono::prelude::*;
 use chrono::{DateTime, Duration, Local};
+use log::info;
 
 #[serde_with::serde_as]
 #[derive(Serialize, Deserialize, Debug)]
@@ -46,7 +47,7 @@ impl State {
 	// When tick returns 'false', it's time to shutdown.   
 	pub fn tick(&mut self, freq: Duration, time_now: DateTime<Local>) -> bool {
 		if ! self._last_synced_today(time_now) {
-			println!("Resetting daily limit");
+			info!("Resetting daily limit");
 			self.limit_left = self.limit;
 		}
 		self.last_sync = time_now;
@@ -55,12 +56,12 @@ impl State {
 		self.limit_left = self.limit_left - freq;
 
 		if ! self._is_inside_timerange(time_now) {
-			println!("Outside timerange");
+			info!("Outside timerange");
 			return false
 		}
 
 		if self.limit_left <= Duration::minutes(0) {
-			println!("Out of time");
+			info!("Out of time");
 			return false
 		}
 

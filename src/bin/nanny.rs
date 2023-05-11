@@ -1,3 +1,7 @@
+#[macro_use] extern crate log;
+extern crate simplelog;
+use simplelog::*;
+
 use clap::Parser;
 use std::path::Path;
 use std::fs::File;
@@ -39,10 +43,21 @@ struct Args {
     /// This program stores is state in a .yaml file. Hide it well.
     #[arg(long)]
     state_path: String,
+
+    /// Log file path
+    #[arg(long)]
+    log_path: String,
 }
 
 fn main() {
     let args = Args::parse();
+
+    CombinedLogger::init(
+        vec![
+            TermLogger::new(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto),
+            WriteLogger::new(LevelFilter::Info, Config::default(), File::create(args.log_path).unwrap())
+        ]
+    ).unwrap();
 
     if ! Path::new(args.state_path.as_str()).exists() {
         let writer = File::create(&args.state_path.as_str())
@@ -66,14 +81,14 @@ fn main() {
 			.expect("Failed parsing state file");
 
 		// Action
-    	println!("{:?}", st);
+    	info!("{:?}", st);
 		let tn: DateTime<Local>  = Local::now();
 		if ! st.tick(freq, tn) {
-			println!("Tick failed, shutting down");
+			info!("Tick failed, shutting down");
     		shutdown_with_message_wrapper("Enough computer for today.", 60, false).expect("Shutdown failed");
 
             /*
-			println!("Waiting for the system to shut down");
+			info!("Waiting for the system to shut down");
 			loop {
 				sleep(Duration::minutes(1).to_std().unwrap());
 			}

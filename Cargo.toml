@@ -8,9 +8,11 @@ edition = "2021"
 [dependencies]
 chrono = { version = "0.4.24", features = ["serde"] }
 clap = { version = "4.2.5", features = ["derive", "cargo"] }
+log = "0.4.17"
 serde = { version = "1.0.160", features = ["derive"] }
 serde_with = { version = "2.3.3", features = ["chrono_0_4", "chrono"] }
 serde_yaml = "0.9.21"
+simplelog = "0.12.1"
 system_shutdown = "4.0.1"
 
 [build]
